@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  email               String               @unique
+  passwordHash        String
+  name                String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  workspaces          Workspace[]          @relation("CreatedWorkspaces")
+  memberships         WorkspaceMember[]
+  documents           Document[]           @relation("CreatedDocuments")
+  versions            DocumentVersion[]
+  comments            Comment[]
+  attachments         Attachment[]
+  notifications       Notification[]
+  activityLogs        ActivityLog[]
+  collaborators       DocumentCollaborator[]
+  documentPermissions DocumentPermission[]
+}
+
+model Workspace {
+  id          String            @id @default(uuid())
+  name        String
+  createdById String
+  createdBy   User              @relation("CreatedWorkspaces", fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  members     WorkspaceMember[]
+  documents   Document[]
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole @default(VIEWER)
+  joinedAt    DateTime      @default(now())
+
+  @@unique([workspaceId, userId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  EDITOR
+  COMMENTER
+  VIEWER
+  GUEST
+}
+
+model Document {
+  id            String                 @id @default(uuid())
+  workspaceId   String
+  workspace     Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  title         String
+  createdById   String
+  createdBy     User                   @relation("CreatedDocuments", fields: [createdById], references: [id])
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  blocks        DocumentBlock[]
+  versions      DocumentVersion[]
+  comments      Comment[]
+  attachments   Attachment[]
+  collaborators DocumentCollaborator[]
+  permissions   DocumentPermission[]
+}
+
+model DocumentBlock {
+  id            String    @id @default(uuid())
+  documentId    String
+  document      Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  type          String    // e.g. "paragraph", "heading", "quote", "code", "image", "table", "checklist", "divider", "list-numbered", "list-bullet", "embed"
+  content       Json      // JSONB storing block-specific properties
+  position      Int
+  parentBlockId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model DocumentVersion {
+  id          String   @id @default(uuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  snapshot    Json     // Full snapshot of document blocks
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model Comment {
+  id         String    @id @default(uuid())
+  documentId String
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  blockId    String?
+  authorId   String
+  author     User      @relation(fields: [authorId], references: [id])
+  content    String
+  parentId   String?
+  parent     Comment?  @relation("ThreadedComments", fields: [parentId], references: [id])
+  replies    Comment[] @relation("ThreadedComments")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  url          String
+  mimeType     String
+  size         Int
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "mention", "reply", "share", "invite", "restore", "comment"
+  data      Json
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model DocumentPermission {
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String   // e.g. "EDITOR", "VIEWER"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([documentId, userId])
+}
+
+model DocumentCollaborator {
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String
+  joinedAt   DateTime @default(now())
+
+  @@unique([documentId, userId])
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  createdAt  DateTime @default(now())
+}
