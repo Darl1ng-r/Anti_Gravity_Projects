@@ -37,7 +37,7 @@ export declare class WorkspacesService {
             id: string;
             workspaceId: string;
             userId: string;
-            role: import("../../../generated/prisma/enums.js").WorkspaceRole;
+            role: import("../../../generated/enums.js").WorkspaceRole;
             joinedAt: Date;
         })[];
     } & {

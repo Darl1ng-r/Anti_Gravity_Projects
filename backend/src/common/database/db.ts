@@ -1,11 +1,17 @@
-import { PrismaClient } from "../../../generated/prisma/client.js";
+import { PrismaClient } from "../../../generated/client.js";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
+
+const connectionString = process.env["DATABASE_URL"];
+const pool = new pg.Pool({ connectionString });
+const adapter = new PrismaPg(pool);
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
-    accelerateUrl: process.env["DATABASE_URL"] as string,
+    adapter,
     log: ["query"],
   });
 
